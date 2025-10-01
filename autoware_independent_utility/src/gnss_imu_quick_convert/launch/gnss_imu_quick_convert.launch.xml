@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+  <!-- Re-publish IMU, GNSS and RadarTracks with corrected frames & stamps -->
+  <node
+    pkg="gnss_imu_quick_convert"
+    exec="gnss_imu_quick_convert_node"
+    name="gnss_imu_quick_convert"
+    output="screen"/>
+
+</launch>

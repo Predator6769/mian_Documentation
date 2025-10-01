@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+  <!-- Convert /velodyne_points → /sensing/lidar/top/velodyne_points -->
+  <node
+    pkg="velodyne_quick_converter"
+    exec="velodyne_quick_converter_node"
+    name="velodyne_quick_converter"
+    output="screen"/>
+
+</launch>

@@ -1,0 +1,19 @@
+<launch>
+  <!-- <arg name="launch_driver" default="true"/>-->
+
+  <group>
+    <push-ros-namespace namespace="radar_1"/>
+
+    <arg name="radar_raw_name" default="/sensing/radar_1/objects_raw"/>
+    <arg name="radar_filtered_name" default="/sensing/radar_1/filtered_objects"/>
+
+    <include file="$(find-pkg-share sample_sensor_kit_launch)/launch/radar_pipeline.launch.py"/>
+
+    <node pkg="topic_tools" exec="relay" name="radar_relay" output="log">
+      <param name="input_topic" value="/sensing/radar_1/detected_objects_conv"/>
+      <param name="output_topic" value="/sensing/radar_1/detected_objects"/>
+    </node>
+
+
+  </group>
+</launch>
