@@ -1,20 +1,20 @@
-# 🧭 Waypoint Following and Mapping Guide (Autoware + LIO-SAM)
+# Waypoint Following and Mapping Guide (Autoware + LIO-SAM)
 
 This guide provides a complete procedure to **record, publish, and follow waypoints** in Autoware, and to **generate maps** using LIO-SAM with or without GPS.
 
 ---
 
-## 🚦 Step 1: Disable Planning and Perception
+## Step 1: Disable Planning and Perception
 
 Before starting, open:
 ```
-autoware_launch/autoware.launch.xml
+autoware\src\launcher\autoware_launch\autoware_launch\launch\autoware.launch.xml
 ```
-and **disable (comment out)** the *Planning* and *Perception* modules.
+and **disable** the *Planning* and *Perception* modules.
 
 ---
 
-## 📍 Step 2: Recording Waypoints
+## Step 2: Recording Waypoints
 
 ### 1. Launch Autoware
 Deactivate Conda and start Autoware with your desired map and vehicle configuration:
@@ -49,14 +49,14 @@ Edit manually if necessary.
 
 ---
 
-## 🚗 Step 3: Publishing the Recorded Waypoints
+## Step 3: Publishing the Recorded Waypoints
 
 ### 1. Update CSV File Path
 Open:
 ```
 autoware_independent_utility/src/publish_waypoints/src/publish_waypoints.cpp
 ```
-and update the CSV file name to point to your recorded file.
+and update the CSV file name to point to your recorded file. Do this using the variable **csv_file_path_**
 
 ### 2. Build and Run
 ```bash
@@ -72,11 +72,11 @@ ros2 run publish_waypoints publish_waypoints
 
 ---
 
-## 🗺️ Step 4: Mapping Using LIO-SAM
+## Step 4: Mapping Using LIO-SAM
 
 You can generate maps either **with GPS** or **without GPS**.
 
-### 🚫 Without GPS
+### Without GPS
 
 1. Navigate to your LIO-SAM workspace:
    ```bash
@@ -115,7 +115,7 @@ You can generate maps either **with GPS** or **without GPS**.
 
 ---
 
-### 📡 With GPS
+### With GPS
 
 1. Ensure the vehicle is **facing east** before starting.  
    - If it’s not, adjust the **angle calibration** using the parameters:
@@ -151,28 +151,3 @@ You can generate maps either **with GPS** or **without GPS**.
    This will save your **.pcd map files** in the specified directory.
 
 ---
-
-## ✅ Summary
-
-| Task | Command | Notes |
-|------|----------|-------|
-| Disable planning/perception | Edit `autoware.launch.xml` | Run only core modules |
-| Record waypoints | `python3 record_waypoints.py` | Drive manually |
-| Stop recording | `Ctrl + C` | CSV saved in home dir |
-| Set last velocity & accel | Edit CSV | Must be `0.0` |
-| Publish waypoints | `ros2 run publish_waypoints publish_waypoints` | Vehicle should start aligned |
-| Save map (no GPS) | `/lio_sam/save_map` | Dummy GPS topic |
-| Save map (with GPS) | `/lio_sam/save_map` | Ensure east-facing |
-
----
-
-### 🧠 Tips
-- Always **source your setup.bash** before running any ROS 2 node.  
-- Ensure the **vehicle model and sensor kit** match your configuration.  
-- Align the vehicle precisely at the **starting waypoint** in RViz before engaging control.  
-- After recording maps, verify your `.pcd` files in the destination folder.
-
----
-
-📘 **Author:**  
-Documentation compiled for internal testing of **Autoware Waypoint Following and Mapping** workflow.
