@@ -163,7 +163,3 @@ After successful engagement:
 - The vehicle should now begin following the planned trajectory 🚘.
 
 ---
-
-
-If you’re testing with the provided **map and bag data**, follow **steps 1–8**.  
-If you’re using your **own map and sensor data**, just complete **steps 5** (skip others).
