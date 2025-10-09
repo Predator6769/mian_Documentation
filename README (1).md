@@ -72,7 +72,7 @@ ros2 run publish_waypoints publish_waypoints
 
 ---
 
-## Step 4: Mapping Using LIO-SAM
+## Mapping Using LIO-SAM
 
 You can generate maps either **with GPS** or **without GPS**.
 
