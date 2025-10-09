@@ -1,4 +1,4 @@
-# Autonomous Vehicle Launch and Goal Tracking Guide
+# SMDM
 
 ## Step 1: Build and Source Utility Package
 ```bash
