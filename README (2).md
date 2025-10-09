@@ -137,6 +137,8 @@ ros2 launch vehicle_platform platform.launch.xml
 Build and source the **autoware_independent_utility** ROS 2 package in this repo.  
 Then run:
 ```bash
+cd ~/autoware_independent_utility
+source install/setup.bash
 ros2 launch velodyne_quick_converter velodyne_quick_converter.launch.py
 ros2 launch gnss_imu_quick_convert gnss_imu_quick_convert.launch.xml
 ```
