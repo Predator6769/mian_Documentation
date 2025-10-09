@@ -1,20 +1,10 @@
-## Drive Link for Data
-[Download Data (Google Drive)](https://drive.google.com/file/d/1O_A29byAwOdklaBuVPmSqvipU-cOxMCh/view?usp=sharing)
-
-After downloading, extract the ZIP file. It contains:
-- ROS bag  
-- Map data  
-- A demonstration video showing the issue  
-
-# How to Reproduce the issue
-
 ## NovAtel OEM7 Messages
 
 Since the GNSS system here is based on NovAtel, you need to clone and build the **novatel_oem7_msgs** package (if not availale already) to make these custom messages available.
 
 Repository: [novatel_oem7_driver](https://github.com/novatel/novatel_oem7_driver/tree/master/src)
 
-## 1. Update vehicle launch
+## Update vehicle launch
 Replace `vehicle.launch.xml` in:  
 ```
 autoware/src/universe/autoware.universe/launch/tier4_vehicle_launch/launch/vehicle.launch.xml
@@ -25,7 +15,7 @@ Make sure the `vehicle_launch_pkg` argument in this file points to the correct `
 
 ---
 
-## 2. Update pacmod interface
+## Update pacmod interface
 Replace `pacmod_interface.cpp` in:  
 ```
 autoware/src/vehicle/external/pacmod_interface/pacmod_interface/src/pacmod_interface/
@@ -39,7 +29,7 @@ colcon build --symlink-install --packages-select pacmod_interface
 ```
 ---
 
-## 3. Update calibration files
+## Update calibration files
 Replace `sensor_kit_calibration.yaml` and `sensors_calibration.yaml` in:  
 ```
 autoware/src/param/autoware_individual_params/individual_params/config/default/sample_sensor_kit/
@@ -48,7 +38,7 @@ with the provided versions in this repo.
 
 ---
 
-## 4. Replace sensor kit folders
+## Replace sensor kit folders
 Replace the following folders in:  
 ```
 autoware/src/sensor_kit/sample_sensor_kit_launch/
@@ -68,23 +58,82 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --package
 
 ---
 
-## 5. Update Eagleye config
-Replace the contents of:  
-```
-autoware/src/launcher/autoware_launch/autoware_launch/config/localization/eagleye_config.param.yaml
-```  
-with the provided config file.  
+## Localization Setup Instructions
 
-Then update the following arguments in:  
+### Update PointCloud Input Topic
+**File:** `autoware/src/launcher/autoware_launch/autoware_launch/launch/components/tier4_localization_component.launch_original.xml`
+
+Replace the `input_pointcloud` argument with the topic that publishes the processed point cloud data.
+
+**Current topic:**
 ```
-autoware/src/launcher/autoware_launch/autoware_launch/launch/components/tier4_localization_component.launch.xml
-```  
-- `pose_source` → `"eagleye"`  
-- `twist_source` → `"eagleye"`
+/sensing/lidar/top/pointcloud_before_sync
+```
+
+### Enable Localization
+**File:** `autoware/src/launcher/autoware_launch/autoware_launch/launch/autoware.launch.xml`
+
+Make sure the **localization module** and **API module** are enabled.
+
 
 ---
 
-## 6. Build and source utility package
+## Perception Setup Instructions
+
+### Configure PointCloud Input
+**File:** `autoware/src/universe/autoware.universe/launch/tier4_perception_launch/launch/perception.launch.xml`
+
+Update the `input_pointcloud` argument to use the correct point cloud topic.
+
+### Enable Perception Module
+Ensure that the **perception module** is enabled in `autoware.launch.xml`.
+
+
+---
+
+## System Module Setup
+
+### Modify System Launch File
+**File:** `autoware/src/universe/autoware.universe/launch/tier4_system_launch/launch/system.launch.xml`
+- Comment out the **emergency_handler** module.
+- Set `launch_system_monitor` to `false`.
+
+### Modify Component State Monitor
+**File:** `autoware_launch/config/system/component_state_monitor/topics.yaml`
+- Comment out all topics related to **perception** and **control** modules.
+
+Then, enable the **System** module in `autoware.launch.xml`.
+
+
+---
+
+## Planning Module Setup
+
+- **No changes required.**
+- If the **System** and **Vehicle Interface** are correctly set up and topics are publishing:
+  → Simply enable the **Planning** module in `autoware.launch.xml`.
+
+
+---
+
+## Control Module Setup
+
+**File:** `autoware/src/launcher/autoware_launch/autoware_launch/launch/components/tier4_control_component.launch.xml`
+- Set `enable_autonomous_emergency_braking` to `false`.
+
+Then, enable the **Control** module in `autoware.launch.xml`.
+
+
+---
+
+## Final Launch Steps
+
+### 1️⃣ Launch the Vehicle Platform
+```bash
+ros2 launch vehicle_platform platform.launch.xml
+```
+
+### 2️⃣ Build and source utility package
 Build and source the **autoware_independent_utility** ROS 2 package in this repo.  
 Then run:
 ```bash
@@ -92,29 +141,29 @@ ros2 launch velodyne_quick_converter velodyne_quick_converter.launch.py
 ros2 launch gnss_imu_quick_convert gnss_imu_quick_convert.launch.xml
 ```
 
----
-
-## 7. Play bag file and launch Autoware
-Play the provided bag file with remapping:
+### 3️⃣ Launch Autoware with Map and Vehicle Configurations
 ```bash
-ros2 bag play test_field_eagleye_bag --remap /tf:=/b1 /tf_static:=/b2
+ros2 launch autoware_launch autoware.launch.xml map_path:=$HOME/parking_lot_big_loop_lanelet vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit
 ```
+> 🗺️ Change `map_path` based on your map directory.
 
-Run Autoware using autoware.launch.xml with the provided map data using (change map path accordingly):
-```bash
-ros2 launch autoware_launch autoware.launch.xml map_path:=$HOME/map_location/test_field_map_latest/ vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit
-```
-Disable **system**, **planning**, **perception**, and **control** modules in `autoware.launch.xml` since only localization is being tested.
+### 4️⃣ Wait for Localization
+Wait for the vehicle to successfully **localize** before proceeding.
+
+### 5️⃣ Set a Goal in RViz
+In **RViz**, set a goal point (ensure it is centered within a lane).
+
+### 6️⃣ Engage Vehicle Control
+Once the path is planned:
+- Toggle **Autoware Control** to engage **PACMod** vehicle control.
+
+### 7️⃣ Switch to Auto Mode
+After successful engagement:
+- Switch to **AUTO** mode in RViz.
+- The vehicle should now begin following the planned trajectory 🚘.
 
 ---
 
-## 8. Topics for verification
-To check the point cloud output, listen on:  
-```
-/sensing/lidar/top/pointcoud_before_sync
-```
-
----
 
 If you’re testing with the provided **map and bag data**, follow **steps 1–8**.  
 If you’re using your **own map and sensor data**, just complete **steps 5** (skip others).
