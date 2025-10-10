@@ -112,7 +112,7 @@ Ensure that the **perception module** is enabled in `autoware.launch.xml`.
 - Set `launch_system_monitor` to `false`.
 
 ### Modify Component State Monitor
-**File:** `autoware_launch/config/system/component_state_monitor/topics.yaml`
+**File:** `autoware\src\launcher\autoware_launch\autoware_launch\config\system\component_state_monitor\topics.yaml`
 - Comment out all topics related to **perception** and **control** modules.
 
 Then, enable the **System** module in `autoware.launch.xml`.
