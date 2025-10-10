@@ -13,5 +13,10 @@ Please refer to the appropriate README files below depending on the functionalit
 
 - **smdm.md**  
   Use this guide for running the **SMDM**.
+  
+- **README_Sensor_Kit_Setup.md**  
+  Use this guide if you are **setting up your own sensor kit** (e.g., adding new sensors or replacing existing ones).  
+  If not, please use the **default sensor kit configuration provided in this repository**.
+
 
 ---
