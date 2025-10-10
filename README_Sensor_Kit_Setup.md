@@ -221,6 +221,9 @@ Ensure all sensor frame IDs match those in `sensor_kit_calibration.yaml`.
 `autoware/src/sensor_kit/sample_sensor_kit_launch/sample_sensor_kit_launch/launch/imu.launch.xml`
 
 Set the `imu_raw_name` argument to your IMU topic published by the custom driver.
+```yaml
+<arg name="imu_raw_name" default="/novatel/oem7/imu/data_raw_frame"/>
+```
 
 ---
 
