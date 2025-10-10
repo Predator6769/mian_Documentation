@@ -3,8 +3,15 @@
 This guide provides a complete procedure to **record, publish, and follow waypoints** in Autoware, and to **generate maps** using LIO-SAM with or without GPS.
 
 ---
-
-## Step 1: Disable Planning and Perception
+## Step 1: Build and Source Utility Package
+```bash
+cd ~/autoware_independent_utility
+source install/setup.bash
+ros2 launch velodyne_quick_converter velodyne_quick_converter.launch.py
+ros2 launch gnss_imu_quick_convert gnss_imu_quick_convert.launch.xml
+```
+---
+## Step 2: Disable Planning and Perception
 
 Before starting, open:
 ```
@@ -14,7 +21,7 @@ and **disable** the *Planning* and *Perception* modules.
 
 ---
 
-## Step 2: Recording Waypoints
+## Step 3: Recording Waypoints
 
 ### 1. Launch Autoware
 Deactivate Conda and start Autoware with your desired map and vehicle configuration:
@@ -49,7 +56,7 @@ Edit manually if necessary.
 
 ---
 
-## Step 3: Publishing the Recorded Waypoints
+## Step 4: Publishing the Recorded Waypoints
 
 ### 1. Update CSV File Path
 Open:
