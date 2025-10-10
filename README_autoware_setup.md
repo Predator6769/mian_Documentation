@@ -128,12 +128,12 @@ Then, enable the **Control** module in `autoware.launch.xml`.
 
 ## Final Launch Steps
 
-### 1️⃣ Launch the Vehicle Platform
+### 1️ Launch the Vehicle Platform
 ```bash
 ros2 launch vehicle_platform platform.launch.xml
 ```
 
-### 2️⃣ Build and source utility package
+### 2️ Build and source utility package
 Build and source the **autoware_independent_utility** ROS 2 package in this repo.  
 Then run:
 ```bash
@@ -143,23 +143,23 @@ ros2 launch velodyne_quick_converter velodyne_quick_converter.launch.py
 ros2 launch gnss_imu_quick_convert gnss_imu_quick_convert.launch.xml
 ```
 
-### 3️⃣ Launch Autoware with Map and Vehicle Configurations
+### 3️ Launch Autoware with Map and Vehicle Configurations
 ```bash
 ros2 launch autoware_launch autoware.launch.xml map_path:=$HOME/parking_lot_big_loop_lanelet vehicle_model:=sample_vehicle sensor_model:=sample_sensor_kit
 ```
-> 🗺️ Change `map_path` based on your map directory.
+> Change `map_path` based on your map directory.
 
-### 4️⃣ Wait for Localization
+### 4️ Wait for Localization
 Wait for the vehicle to successfully **localize** before proceeding.
 
-### 5️⃣ Set a Goal in RViz
+### 5️ Set a Goal in RViz
 In **RViz**, set a goal point (ensure it is centered within a lane).
 
-### 6️⃣ Engage Vehicle Control
+### 6️ Engage Vehicle Control
 Once the path is planned:
 - Toggle **Autoware Control** to engage **PACMod** vehicle control.
 
-### 7️⃣ Switch to Auto Mode
+### 7️ Switch to Auto Mode
 After successful engagement:
 - Switch to **AUTO** mode in RViz.
 - The vehicle should now begin following the planned trajectory 🚘.
