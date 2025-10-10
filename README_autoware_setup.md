@@ -4,7 +4,7 @@ Since the GNSS system here is based on NovAtel, you need to clone and build the 
 
 Repository: [novatel_oem7_driver](https://github.com/novatel/novatel_oem7_driver/tree/master/src)
 
-## Update vehicle launch
+## Step 1: Update vehicle launch
 Change `vehicle.launch.xml` in:  
 ```
 autoware/src/universe/autoware.universe/launch/tier4_vehicle_launch/launch/vehicle.launch.xml
@@ -28,7 +28,7 @@ Make sure the `vehicle_launch_pkg` argument in this file points to the correct `
 
 ---
 
-## Update pacmod interface
+## Step 2: Update pacmod interface
 Replace `pacmod_interface.cpp` in:  
 ```
 autoware/src/vehicle/external/pacmod_interface/pacmod_interface/src/pacmod_interface/
@@ -42,7 +42,7 @@ colcon build --symlink-install --packages-select pacmod_interface
 ```
 ---
 
-## Update calibration files
+## Step 3: Update calibration files
 Replace `sensor_kit_calibration.yaml` and `sensors_calibration.yaml` in:  
 ```
 autoware/src/param/autoware_individual_params/individual_params/config/default/sample_sensor_kit/
@@ -51,7 +51,7 @@ with the provided versions in this repo.
 
 ---
 
-## Replace sensor kit folders
+## Step 4: Replace sensor kit folders
 Replace the following folders in:  
 ```
 autoware/src/sensor_kit/sample_sensor_kit_launch/
@@ -71,7 +71,7 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --package
 
 ---
 
-## Localization Setup Instructions
+## Step 5: Localization Setup Instructions
 
 ### Update PointCloud Input Topic
 **File:** `autoware/src/launcher/autoware_launch/autoware_launch/launch/components/tier4_localization_component.launch_original.xml`
@@ -91,7 +91,7 @@ Make sure the **localization module** and **API module** are enabled.
 
 ---
 
-## Perception Setup Instructions
+## Step 6: Perception Setup Instructions
 
 ### Configure PointCloud Input
 **File:** `autoware/src/universe/autoware.universe/launch/tier4_perception_launch/launch/perception.launch.xml`
@@ -104,7 +104,7 @@ Ensure that the **perception module** is enabled in `autoware.launch.xml`.
 
 ---
 
-## System Module Setup
+## Step 7: System Module Setup
 
 ### Modify System Launch File
 **File:** `autoware/src/universe/autoware.universe/launch/tier4_system_launch/launch/system.launch.xml`
@@ -120,7 +120,7 @@ Then, enable the **System** module in `autoware.launch.xml`.
 
 ---
 
-## Planning Module Setup
+## Step 8: Planning Module Setup
 
 - **No changes required.**
 - If the **System** and **Vehicle Interface** are correctly set up and topics are publishing:
@@ -129,7 +129,7 @@ Then, enable the **System** module in `autoware.launch.xml`.
 
 ---
 
-## Control Module Setup
+## Step 9: Control Module Setup
 
 **File:** `autoware/src/launcher/autoware_launch/autoware_launch/launch/components/tier4_control_component.launch.xml`
 - Set `enable_autonomous_emergency_braking` to `false`.
@@ -139,7 +139,7 @@ Then, enable the **Control** module in `autoware.launch.xml`.
 
 ---
 
-## Final Launch Steps
+## Step 10: Final Launch Steps
 
 ### 1️ Launch the Vehicle Platform
 ```bash
