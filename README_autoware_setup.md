@@ -162,6 +162,6 @@ Once the path is planned:
 ### 7️ Switch to Auto Mode
 After successful engagement:
 - Switch to **AUTO** mode in RViz.
-- The vehicle should now begin following the planned trajectory 🚘.
+- The vehicle should now begin following the planned trajectory
 
 ---
