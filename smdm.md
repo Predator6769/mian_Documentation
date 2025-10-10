@@ -27,5 +27,5 @@ In another terminal:
 ```bash
 conda activate smdm
 cd ~/Documents/SMDM/SMDM/
-python3 demo.py
+python demo.py
 ```
