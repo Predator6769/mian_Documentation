@@ -5,13 +5,26 @@ Since the GNSS system here is based on NovAtel, you need to clone and build the 
 Repository: [novatel_oem7_driver](https://github.com/novatel/novatel_oem7_driver/tree/master/src)
 
 ## Update vehicle launch
-Replace `vehicle.launch.xml` in:  
+Change `vehicle.launch.xml` in:  
 ```
 autoware/src/universe/autoware.universe/launch/tier4_vehicle_launch/launch/vehicle.launch.xml
 ```
 with the provided file in this repo.
 
-Make sure the `vehicle_launch_pkg` argument in this file points to the correct `pacmod_interface` path on your system.
+Make sure the `vehicle_launch_pkg` argument in this file points to the correct `pacmod_interface` path on your system. Then add the pacmod_interface package and raw_vehicle_converter.launch.xml
+
+```yaml
+<include file="$(var vehicle_launch_pkg)/launch/pacmod_interface.launch.xml">
+   <arg name="vehicle_id" value="$(var vehicle_id)"/>
+   <arg name="raw_vehicle_cmd_converter_param_path" value="$(var raw_vehicle_cmd_converter_param_path)"/>
+   <arg name="initial_engage_state" value="$(var initial_engage_state)"/>
+</include>
+```
+```yaml
+<group>
+   <include file="$(find-pkg-share raw_vehicle_cmd_converter)/launch/raw_vehicle_converter.launch.xml"/>
+</group>
+```
 
 ---
 
