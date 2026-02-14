@@ -76,11 +76,11 @@ The **LongitudinalController** node manages the longitudinal (forward/backward) 
 
 This section explains how to launch the two ROS 2 nodes included in this package: the **FrontObjectDetector** and the **LongitudinalController**.
 
-### Launching the FrontObjectDetector
-The **FrontObjectDetector** node subscribes to radar tracks and detects objects directly in front of the ego vehicle. It also publishes visualization markers and the positions of detected objects.  
-
-To launch the node:
-
 ```bash
 ros2 launch radar_front_object_detector front_object_detector.launch.xml
+```
+
+```bash
+ros2 launch longitudinal_control longitudinal_control.launch.xml
+```
 
