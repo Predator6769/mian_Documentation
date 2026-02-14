@@ -1,0 +1,5 @@
+longitudinal_controller_node:
+  ros__parameters:
+    look_ahead_distance: 5.0       # in meters
+    timer_duration_msec: 100       # in milliseconds
+    csv_file_path: "/data/parking_lot_trajectory_acc.csv"

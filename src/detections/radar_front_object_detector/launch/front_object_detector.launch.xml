@@ -1,0 +1,12 @@
+<launch>
+  <node
+    pkg="radar_front_object_detector"
+    exec="front_object_detector"
+    name="front_object_detector"
+    output="screen">
+
+    <param from="$(find-pkg-share radar_front_object_detector)/config/front_object_detector.yaml"/>
+
+  </node>
+
+</launch>
