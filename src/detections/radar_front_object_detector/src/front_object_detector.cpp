@@ -64,8 +64,6 @@ private:
     geometry_msgs::msg::PoseArray data;
     data.header = msg->header;
 
-    const double y_base = 0.9;
-
     for (const auto & track : msg->tracks)
     {
       const double x = track.position.x;  // forward
