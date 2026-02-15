@@ -29,7 +29,7 @@ public:
 
     // Tunable parameters
     max_angle_rad_ = this->declare_parameter("max_angle_deg", 5) * M_PI / 180.0;
-
+    y_base = this->declare_parameter("vehicle_width_half", 0.9);
     RCLCPP_INFO(this->get_logger(), "Front Object Detector initialized");
   }
 
@@ -133,6 +133,7 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr closest_point_pub_;
   double max_angle_rad_;
+  double y_base;
 };
 
 int main(int argc, char ** argv)
