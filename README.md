@@ -13,7 +13,7 @@ x, y, z, roll, pitch, yaw, velocity
 - **x**: Longitudinal position in meters (forward direction relative to vehicle).  
 - **y**: Lateral position in meters (sideways relative to vehicle).  
 - **z**: Vertical position in meters.  
-- **roll, pitch, yaw**: Orientation in **radians**.  
+- **roll, pitch, yaw**: Orientation in **radians** with respect to body frame.  
 - **velocity**: Longitudinal velocity at that point in **m/s**.
 
 ### Example:
@@ -32,14 +32,13 @@ x,y,z,roll,pitch,yaw,velocity
    - `velocity` **must be non-zero**.
 
 2. **Last Point Velocity Must Be Zero**  
-   - This indicates the vehicle stops at the end of the trajectory.  
 
 3. **All Points Must Include All Columns**  
    - Each row must include values for `x, y, z, roll, pitch, yaw, velocity`.  
    - Missing values are not allowed.
 
 4. **Orientation Values**  
-   - `roll`, `pitch`, `yaw` must be in **radians**, even if zero.  
+   - `roll`, `pitch`, `yaw` must be in **radians**.  
 
 5. **Velocity Consistency**  
    - Intermediate points may have varying velocity, but the first point must start with a **non-zero velocity**, and the last point must end with **0 m/s**.
