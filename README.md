@@ -1,6 +1,6 @@
 # Body-Frame Trajectory CSV Guidelines
 
-This document specifies the constraints and formatting requirements for CSV files representing a vehicle trajectory in the **body frame**. These files are intended for use with the ROS 2 node that converts body-frame trajectories into world-frame `autoware_auto_planning_msgs/Trajectory`.
+This document specifies the constraints and formatting requirements for CSV files representing a vehicle trajectory in the **body frame**. These files are intended for use with the ROS 2 node that converts body-frame trajectories into world-frame.
 
 ## CSV Format
 
