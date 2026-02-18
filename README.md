@@ -45,10 +45,3 @@ x,y,z,roll,pitch,yaw,velocity
 
 ---
 
-This ensures that the ROS 2 trajectory converter can:
-
-- Correctly transform points from **body frame → world frame** using odometry.  
-- Convert **roll/pitch/yaw → quaternion**.  
-- Compute **acceleration** from velocity and distance between points.  
-- Generate valid `autoware_auto_planning_msgs/Trajectory` messages for simulation or real vehicle execution.
-
