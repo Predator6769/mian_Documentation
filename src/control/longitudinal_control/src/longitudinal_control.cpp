@@ -2,6 +2,7 @@
 #include <autoware_auto_planning_msgs/msg/trajectory.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <geometry_msgs/msg/twist.hpp>
 #include <fstream>
 #include <optional>
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -11,23 +12,35 @@ LongitudinalController::LongitudinalController() : Node("longitudinal_velocity_c
     // traj_subs_ = this->create_subscription<autoware_auto_planning_msgs::msg::Trajectory>("/planning/scenario_planning/trajectory",10,
     //     std::bind(&LongitudinalController::trajectory_callback, this, std::placeholders::_1));
 
-    look_ahead_distance = this->declare_parameter("look_ahead_distance", 5.0);
+    look_ahead_distance = this->declare_parameter("look_ahead_distance", 2.0);
     timer_duration_msec = this->declare_parameter("timer_duration_msec", 100.0);
+    control_mode = this->declare_parameter("control_mode", 1);
 
     vehicle_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/localization/kinematic_state",10,
         std::bind(&LongitudinalController::vehicle_state_callback, this, std::placeholders::_1));
 
-    target_vel_sub_ = this->create_subscription<std_msgs::msg::Float64>("/acc/target_vel",10,
+    target_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>("/acc/target_vel",10,
         std::bind(&LongitudinalController::set_target_velocity, this, std::placeholders::_1));
     
     updated_traj_publisher_ = this->create_publisher<autoware_auto_planning_msgs::msg::Trajectory>(
         "/planning/scenario_planning/trajectory", 10);
 
+    // std::string home_dir = std::getenv("HOME");
+    // csv_file_path_ = home_dir + "/parking_lot_trajectory_acc.csv";
+
     std::string pkg_path = ament_index_cpp::get_package_share_directory("longitudinal_control");
 
     std::string pkg_file = this->declare_parameter("csv_file_path", "/data/parking_lot_trajectory_acc.csv");
 
+    acceleration_sub_ =
+    this->create_subscription<geometry_msgs::msg::AccelWithCovarianceStamped>(
+        "/localization/acceleration",
+        10,
+        std::bind(&LongitudinalController::acceleration_callback, this, std::placeholders::_1));
+
     csv_file_path_ = pkg_path + pkg_file;
+
+    std::cout<<csv_file_path_;
 
     if (!read_csv_to_trajectory(csv_file_path_)) {
       RCLCPP_ERROR(this->get_logger(), "Failed to read trajectory from CSV.");
@@ -95,8 +108,13 @@ void LongitudinalController::vehicle_state_callback(const nav_msgs::msg::Odometr
     current_vehicle_state = vehicle_s;
 }
 
-void LongitudinalController::set_target_velocity(const std_msgs::msg::Float64::SharedPtr tar_vel){
-    target_velocity = tar_vel->data;
+void LongitudinalController::set_target_velocity(const geometry_msgs::msg::Twist::SharedPtr tar_vel){
+    target_velocity = tar_vel->linear.x;
+    target_acceleration = tar_vel->linear.z;
+}
+
+void LongitudinalController::acceleration_callback(const geometry_msgs::msg::AccelWithCovarianceStamped & tar_acc){
+    current_acceleration = tar_acc;
 }
 
 std::pair<autoware_auto_planning_msgs::msg::TrajectoryPoint, size_t> LongitudinalController::findNearestTrajectoryPoint(const autoware_auto_planning_msgs::msg::Trajectory & traj, const nav_msgs::msg::Odometry vehicle_state){
@@ -157,6 +175,121 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
     // Make a copy of the input trajectory
     autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
 
+    for (size_t i = start_index; i <= end_index; ++i) {
+        const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
+        const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
+        const double dist = std::sqrt(dx * dx + dy * dy);
+
+        // Compute ratio along lookahead distance
+        // const double ratio = std::clamp(dist / lookahead, 0.0, 1.0);
+
+        // const double tar_v = current_vehicle_velocity + ratio * (target_velocity.value() - current_vehicle_velocity);
+
+        const double tar_v = target_velocity.value();
+
+        double ds, target_a;
+
+        if(i == 0)
+        ds = std::hypot(
+            traj.points[i+1].pose.position.x - traj.points[i].pose.position.x,
+            traj.points[i+1].pose.position.y - traj.points[i].pose.position.y
+        );
+        else
+        ds = std::hypot(
+            traj.points[i].pose.position.x - traj.points[i-1].pose.position.x,
+            traj.points[i].pose.position.y - traj.points[i-1].pose.position.y
+        );
+        
+        if(i == start_index)
+        target_a = std::clamp(((tar_v*tar_v) - (current_vehicle_velocity*current_vehicle_velocity))/(2*ds), -5.0, 3.0);
+        else
+        target_a = std::clamp(((tar_v*tar_v) - (traj.points[i-1].longitudinal_velocity_mps*traj.points[i-1].longitudinal_velocity_mps))/(2*ds), -5.0, 3.0);
+
+
+        // Linear interpolation from current velocity to target velocity
+        if(end_index != traj.points.size()-1){
+            traj.points[i].longitudinal_velocity_mps = tar_v;
+            
+            traj.points[i].acceleration_mps2 = target_a;
+        }
+    }
+
+    return traj;
+}
+
+autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::InterpolateAccelerations(
+    const autoware_auto_planning_msgs::msg::Trajectory & traj_b,
+    size_t start_index,
+    size_t end_index,
+    const double current_vehicle_acceleration,
+    const double current_vehicle_velocity,
+    const double lookahead)
+{
+    // Make a copy of the input trajectory
+    autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
+
+    for (size_t i = start_index; i <=end_index; ++i) {
+        const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
+        const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
+        const double dist = std::sqrt(dx * dx + dy * dy);
+
+        // Compute ratio along lookahead distance
+        const double ratio = std::clamp(dist / lookahead, 0.0, 1.0);
+
+        // const double target_a = std::clamp(current_vehicle_acceleration + (ratio * (target_acceleration.value() - current_vehicle_acceleration)), -5.0,3.0);
+        
+        const double target_a = target_acceleration.value();
+        
+        double tar_v;
+
+        if(i == 0)
+        const double ds = std::hypot(
+            traj.points[i+1].pose.position.x - traj.points[i].pose.position.x,
+            traj.points[i+1].pose.position.y - traj.points[i].pose.position.y
+        );
+        else
+        const double ds = std::hypot(
+            traj.points[i].pose.position.x - traj.points[i-1].pose.position.x,
+            traj.points[i].pose.position.y - traj.points[i-1].pose.position.y
+        );
+        
+        if(i == start_index)
+        tar_v = std::clamp(
+            std::sqrt(std::max(0.0, (2 * ds * target_a) + 
+                                    (current_vehicle_velocity * current_vehicle_velocity))),
+            0.0, 15.0
+        );
+        else
+        tar_v = std::clamp(
+            std::sqrt(std::max(0.0, (2 * ds * target_a) + 
+                                    (traj.points[i-1].longitudinal_velocity_mps *
+                                    traj.points[i-1].longitudinal_velocity_mps))),
+            0.0, 15.0
+        );
+
+
+        // Linear interpolation from current velocity to target velocity
+        if(end_index != traj.points.size()-1){
+            traj.points[i].longitudinal_velocity_mps = tar_v;
+            
+            traj.points[i].acceleration_mps2 = target_a;
+        }
+    }
+
+    return traj;
+}
+
+autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::InterpolateAccelerationsAndVelocity(
+    const autoware_auto_planning_msgs::msg::Trajectory & traj_b,
+    size_t start_index,
+    size_t end_index,
+    const double current_vehicle_acceleration,
+    const double current_vehicle_velocity,
+    const double lookahead)
+{
+    // Make a copy of the input trajectory
+    autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
+
     for (size_t i = start_index; i < end_index; ++i) {
         const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
         const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
@@ -165,15 +298,15 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
         // Compute ratio along lookahead distance
         const double ratio = std::clamp(dist / lookahead, 0.0, 1.0);
 
-        const double tar_vel = current_vehicle_velocity + ratio * (target_velocity.value() - current_vehicle_velocity);
+        const double target_a = std::clamp(current_vehicle_acceleration + (ratio * (target_acceleration.value() - current_vehicle_acceleration)), -5.0,3.0);
 
-        const double accel_target = std::clamp(((tar_vel*tar_vel) - (current_vehicle_velocity*current_vehicle_velocity))/(2*dist), -5.0, 3.0);
+        double tar_v = std::clamp((current_vehicle_velocity + ratio * (target_velocity.value() - current_vehicle_velocity)),0.0,15.0);
 
         // Linear interpolation from current velocity to target velocity
-        if(i != traj.points.size()-1){
-            traj.points[i].longitudinal_velocity_mps =
-                current_vehicle_velocity + ratio * (target_velocity.value() - current_vehicle_velocity);
-            traj.points[i].acceleration_mps2 = accel_target;
+        if(end_index != traj.points.size()-1){
+            traj.points[i].longitudinal_velocity_mps = tar_v;
+            
+            traj.points[i].acceleration_mps2 = target_a;
         }
     }
 
@@ -189,10 +322,28 @@ void LongitudinalController::publishUpdatedTrajectory()
         return;
     }
 
-    if(!current_vehicle_state.has_value() || !target_velocity.has_value()){
-        RCLCPP_WARN(get_logger(), "no vehicle state or target velocity Publishing existing trajectory");
-        updated_traj_publisher_->publish(current_trajectory);
-        return;
+    if(control_mode == 0){
+        if(!current_vehicle_state.has_value() || !target_velocity.has_value()){
+            RCLCPP_WARN(get_logger(), "no vehicle state or target velocity Publishing existing trajectory");
+            updated_traj_publisher_->publish(current_trajectory);
+            return;
+        }
+    }
+
+    else if(control_mode == 1){
+        if(!current_vehicle_state.has_value() || !target_acceleration.has_value()){
+            RCLCPP_WARN(get_logger(), "no vehicle state or target velocity Publishing existing trajectory");
+            updated_traj_publisher_->publish(current_trajectory);
+            return;
+        }
+    }
+
+    else {
+        if(!current_vehicle_state.has_value() || (!target_acceleration.has_value() && !target_velocity.has_value())){
+            RCLCPP_WARN(get_logger(), "no vehicle state or target velocity Publishing existing trajectory");
+            updated_traj_publisher_->publish(current_trajectory);
+            return;
+        }
     }
 
     // 1. Find nearest trajectory point to vehicle
@@ -208,16 +359,34 @@ void LongitudinalController::publishUpdatedTrajectory()
         return;
     }
 
+    autoware_auto_planning_msgs::msg::Trajectory updated_traj;
+
     // 3. Interpolate velocities along those points
-    autoware_auto_planning_msgs::msg::Trajectory updated_traj =
-        InterpolateVelocities(current_trajectory, start_idx, end_idx, current_vehicle_state.value().twist.twist.linear.x, look_ahead_distance);
+    if(control_mode == 0){
+        updated_traj =
+            InterpolateVelocities(current_trajectory, start_idx, end_idx, current_vehicle_state.value().twist.twist.linear.x, look_ahead_distance);
+            RCLCPP_INFO(get_logger(), "Published updated trajectory with target velocity %.2f", target_velocity.value());
+    }
+    else if(control_mode == 1){
+        updated_traj =
+            InterpolateAccelerations(current_trajectory, start_idx, end_idx, current_acceleration.value().accel.accel.linear.x, current_vehicle_state.value().twist.twist.linear.x, look_ahead_distance);
+            RCLCPP_INFO(get_logger(), "Published updated trajectory with target acc %.2f", target_acceleration.value());
+
+    }
+    else{
+        updated_traj =
+            InterpolateAccelerationsAndVelocity(current_trajectory, start_idx, end_idx, current_acceleration.value().accel.accel.linear.x, current_vehicle_state.value().twist.twist.linear.x, look_ahead_distance);
+
+    }
 
     // 4. Publish the updated trajectory
     if (updated_traj_publisher_) {
         updated_traj_publisher_->publish(updated_traj);
         current_trajectory = updated_traj;
-        RCLCPP_INFO(get_logger(), "Published updated trajectory with target velocity %.2f", target_velocity.value());
+        // RCLCPP_INFO(get_logger(), "Published updated trajectory with target velocity %.2f", target_velocity.value());
     } else {
         RCLCPP_WARN(get_logger(), "Updated trajectory publisher not initialized.");
     }
 }
+
+

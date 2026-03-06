@@ -1,4 +1,0 @@
-front_object_detector:
-  ros__parameters:
-    max_angle_deg: 5.0
-    vehicle_width_half: 0.9
