@@ -3,7 +3,6 @@ front_object_detector:
     max_angle_deg: 5.0
     vehicle_width_half: 0.9
     longitudinal_limit: 50.0
-    delta_x: 0.5
     median_window: 5
     alpha_gap: 0.25
     alpha_vel: 0.2
