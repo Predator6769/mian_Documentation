@@ -1,86 +1,234 @@
+
 # ACC UNIT
 
-This repository contains two ROS 2 nodes developed for autonomous vehicle perception and longitudinal control:
+This repository contains multiple ROS 2 packages developed for
+autonomous vehicle perception and longitudinal control. The system
+detects vehicles in front of the ego vehicle using radar data, computes
+safe target velocities using a traffic smoothing model, and generates
+trajectories for the vehicle to follow.
 
-1. **FrontObjectDetector** – Detects vehicles in front of the ego vehicle using radar tracks.  
-2. **LongitudinalController** – Controls the vehicle's velocity along a recorded trajectory, allowing smooth acceleration and deceleration.  
+Packages included:
 
----
+1. **FrontObjectDetector** – Detects vehicles in front of the ego vehicle using radar tracks and applies filtering to reduce radar noise.
+2. **LongitudinalController** – Controls the vehicle's velocity along a recorded trajectory.
+3. **TrafficSmoother** – Computes safe target velocity and acceleration using ego vehicle state, gap, and leader vehicle velocity.
+4. **ACC Unit Launch** – Launch file for starting the entire ACC stack.
 
-## 1. FrontObjectDetector
+------------------------------------------------------------------------
 
-### Overview
-The **FrontObjectDetector** node subscribes to radar tracks from a front-facing radar sensor and identifies objects directly in front of the ego vehicle. It publishes both visualization markers and positional data for the detected objects.
+# 1. FrontObjectDetector
 
-### Subscriptions
+## Overview
+
+The **FrontObjectDetector** node subscribes to radar tracks from a
+front-facing radar sensor and identifies objects directly in front of
+the ego vehicle. The node includes multiple filtering methods to remove
+radar noise and improve measurement stability. It publishes both
+visualization markers and positional data for the detected objects.
+
+## Subscriptions
+
 - **`/radar_1/radar_tracks`** (`radar_msgs/msg/RadarTracks`)  
-  Receives radar track information, including positions of detected objects.
+  Receives radar track information including object positions and velocities.
 
-### Publications
+## Publications
+
 - **`/radar_1/front_track_marker`** (`visualization_msgs/msg/Marker`)  
   Publishes visual markers (spheres and distance labels) for objects detected in front of the vehicle.
 
 - **`/radar_1/front_track_data`** (`geometry_msgs/msg/PoseArray`)  
-  Publishes the position of the detected front objects in a PoseArray message for downstream processing.
+  Publishes the positions of detected front objects for downstream processing.
 
-### Parameters
-- **`max_angle_deg`** (default: `5`)  
-  Maximum lateral angle (in degrees) from the ego vehicle’s forward axis to consider an object as “in front.”
-  
-- 
+## Parameters
+
+- **`max_angle_deg`** (default: `5.0`)  
+  Maximum lateral angle from the ego vehicle's forward axis used to classify objects as "in front".
+
 - **`vehicle_width_half`** (default: `0.9`)  
-  Half of ego vehicle width .”
+  Half of the ego vehicle width used to determine whether an object lies within the driving lane.
 
-### Key Features
-- Filters radar tracks to detect only objects directly in front of the vehicle within a configurable angular range and vehicle width.  
-- Publishes markers for RViz visualization, including distance labels.  
-- Provides real-time front object positions for use in longitudinal control or collision avoidance modules.
+- **`longitudinal_limit`** (default: `50.0`)  
+  Maximum longitudinal distance to consider radar detections.
 
----
+- **`median_window`** (default: `5`)  
+  Window length used for the median filter applied to reduce noise in radar measurements.
 
-## 2. LongitudinalController
+- **`alpha_gap`** (default: `0.25`)  
+  Gain used for the low-pass filter applied to the measured gap.
 
-### Overview
-The **LongitudinalController** node manages the longitudinal (forward/backward) velocity of the vehicle along a pre-recorded trajectory. It reads a CSV file containing a trajectory and continuously updates the vehicle's velocity based on the current target velocity and vehicle state.
+- **`alpha_vel`** (default: `0.2`)  
+  Gain used for the low-pass filter applied to the detected leader vehicle velocity.
 
-### Subscriptions
+- **`leader_acc_limit`** (default: `6.0`)  
+  Maximum allowed acceleration of the leader vehicle used for filtering unrealistic radar estimates.
+
+- **`gap_rate_v_margin`** (default: `5.0`)  
+  Tolerance used to limit unrealistic changes in the measured gap between consecutive time steps.
+
+## Key Features
+
+- Detects vehicles directly in front of the ego vehicle.
+- Applies filtering techniques including median filtering and low-pass filtering to remove radar noise.
+- Rejects unrealistic gap changes and leader vehicle accelerations.
+- Publishes markers for RViz visualization and provides front object data for downstream modules.
+
+------------------------------------------------------------------------
+
+# 2. LongitudinalController
+
+## Overview
+
+The **LongitudinalController** node manages the longitudinal velocity and acceleration of
+the vehicle along a pre-recorded trajectory. The trajectory is read from
+a CSV file, and velocities and accelerations are interpolated along the path to smoothly
+achieve the target.
+
+## Subscriptions
+
 - **`/localization/kinematic_state`** (`nav_msgs/msg/Odometry`)  
-  Provides the current vehicle state, including position and velocity.
+  Provides the current vehicle state including position and velocity.
 
 - **`/acc/target_vel`** (`std_msgs/msg/Float64`)  
-  Provides the target velocity for the vehicle.
+  Target velocity generated by the traffic smoother.
 
-### Publications
-- **`/planning/scenario_planning/trajectory`** (`autoware_auto_planning_msgs/msg/Trajectory`)  
-  Publishes an updated trajectory with interpolated velocities according to the target velocity and current vehicle state.
+## Publications
 
-### Parameters
-- **`look_ahead_distance`** (default: `5.0`)  
-  Distance along the trajectory over which velocities are interpolated.
+- **`/planning/scenario_planning/trajectory`**
+  (`autoware_auto_planning_msgs/msg/Trajectory`)  
+  Publishes an updated trajectory with interpolated velocities.
+
+## Parameters
+
+- **`look_ahead_distance`** (default: `2.0`)  
+  Distance along the trajectory used for velocity interpolation.
 
 - **`timer_duration_msec`** (default: `100.0`)  
-  Interval in milliseconds for periodically publishing updated trajectories.
+  Period at which the trajectory is updated and published.
 
-- **`csv_file_path`** (default: `/data/parking_lot_trajectory_acc.csv`)  
-  Path to the CSV file containing the recorded trajectory.
+- **`csv_file_path`** (default:
+  `/data/parking_lot_trajectory_traffic_smoother_test_1.csv`)  
+  Path to the CSV file containing recorded trajectory data.  
+  The CSV file stores the pre-recorded trajectory points that the vehicle follows during execution.
 
-### Key Features
-- Reads a pre-recorded trajectory from a CSV file.  
-- Finds the nearest trajectory point to the vehicle in real-time.  
-- Interpolates velocities along a look-ahead distance to smoothly achieve the target velocity.  
-- Safely handles cases where vehicle state or target velocity is unavailable.  
-- Publishes updated trajectories for downstream planning or control modules.
+## Key Features
 
----
-## Usage
+- Reads a recorded trajectory from a CSV file.
+- Finds the nearest trajectory point to the vehicle in real-time.
+- Interpolates velocities/accelerations along a look-ahead distance to smoothly
+  reach the target velocity/accelerations.
+- Publishes updated trajectories for downstream planning modules.
 
-This section explains how to launch the two ROS 2 nodes included in this package: the **FrontObjectDetector** and the **LongitudinalController**.
+------------------------------------------------------------------------
+
+# 3. TrafficSmoother
+
+## Overview
+
+The **TrafficSmoother** package computes safe **target velocity and acceleration**
+for the ego vehicle using information about surrounding traffic.
+
+The controller uses:
+
+- Ego vehicle velocity
+- Gap to the leader vehicle
+- Leader vehicle velocity
+
+Using these inputs, the module computes smooth longitudinal control
+commands which are published for downstream control modules.
+
+------------------------------------------------------------------------
+
+## Subscriptions
+
+- **`/ego_odom`** (`nav_msgs/msg/Odometry`)  
+  Ego vehicle odometry and velocity.
+
+- **`/leader_speed`** (`std_msgs/msg/Float64`)  
+  Estimated velocity of the lead vehicle.
+
+- **`/gap`** (`std_msgs/msg/Float64`)  
+  Distance between ego vehicle and leader vehicle.
+
+- **`/control_command`** (`geometry_msgs/msg/Twist`)  
+  Control command containing the target velocity and acceleration.
+
+------------------------------------------------------------------------
+
+## Model Used
+
+The traffic smoothing module uses the **Intelligent Driver Model (IDM)**
+to compute a baseline acceleration. An additional component is used to
+track equilibrium traffic speeds to smooth vehicle motion.
+
+### IDM Parameters
+
+```python
+self.idm_params = {
+    'v0': 5.10,      # Desired speed (m/s)
+    'T': 1.0,        # Safe time headway (s)
+    's0': 5.0,       # Minimum spacing (m)
+    'delta': 15.0,   # Acceleration exponent
+    'a': 1.0,        # Maximum acceleration (m/s²)
+    'b': 1.5         # Comfortable deceleration (m/s²)
+}
+```
+
+------------------------------------------------------------------------
+
+# Debug and Analysis Tools
+
+The **traffic_smoother** package also contains a plotting node used for
+debugging and performance analysis (activated when debug_mode is set to true).
+
+The plotting node records and visualizes:
+
+- Acceleration tracking
+- Acceleration tracking error
+- Velocity tracking
+- Velocity tracking error
+- Gap over time
+- Leader vehicle velocity
+
+These plots help evaluate the performance of the ACC system and verify
+controller behavior during testing.
+
+------------------------------------------------------------------------
+
+# 4. ACC Unit Launch
+
+The **acc_unit_launch** package provides a launch file to start the
+complete ACC stack together.
+
+This launch file starts:
+
+- FrontObjectDetector
+- TrafficSmoother
+- LongitudinalController
+
+## Launch Command
+
+```bash
+ros2 launch acc_unit_launch acc_unit_launch.launch.xml
+```
+
+------------------------------------------------------------------------
+
+# Running Individual Packages
+
+### Front Object Detector
 
 ```bash
 ros2 launch radar_front_object_detector front_object_detector.launch.xml
 ```
 
+### Longitudinal Controller
+
 ```bash
 ros2 launch longitudinal_control longitudinal_control.launch.xml
 ```
 
+### Traffic Smoother
+
+```bash
+ros2 launch simple_proportional_controller simple_proportional_controller.launch.py
+```

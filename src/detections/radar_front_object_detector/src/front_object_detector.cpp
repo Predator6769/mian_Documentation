@@ -57,7 +57,6 @@ public:
     max_angle_rad_ = this->declare_parameter("max_angle_deg", 5.0) * M_PI / 180.0;
     y_base = this->declare_parameter("vehicle_width_half", 0.9);
     longitudinal_limit = this->declare_parameter("longitudinal_limit", 50.0);
-    delta_x = this->declare_parameter("delta_x", 0.5);
 
     median_window_ = this->declare_parameter("median_window", 5);
     alpha_gap_     = this->declare_parameter("alpha_gap", 0.25);   // ~10Hz default
@@ -378,7 +377,6 @@ private:
   double max_angle_rad_;
   double y_base;
   double longitudinal_limit;
-  double delta_x;
   double gap_prev_ = 0.0;
   double vlead_prev_ = 0.0;
   int median_window_;
