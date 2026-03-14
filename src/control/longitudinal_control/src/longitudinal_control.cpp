@@ -136,7 +136,7 @@ std::pair<autoware_auto_planning_msgs::msg::TrajectoryPoint, size_t> Longitudina
     if(nearest_idx == traj.points.size() - 1)
     nearest_idx-=1;
 
-    return {traj.points[nearest_idx+1], nearest_idx+1};
+    return {traj.points[nearest_idx], nearest_idx};
 }
 
 std::pair<size_t, size_t> LongitudinalController::getIndecesWithinLookAheadDistance(const autoware_auto_planning_msgs::msg::Trajectory & traj, const double lookahead, size_t start_index){
@@ -175,7 +175,7 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
     // Make a copy of the input trajectory
     autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
 
-    for (size_t i = start_index; i <= end_index; ++i) {
+    for (size_t i = start_index,j = start_index; i < end_index; ++i,--j) {
         const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
         const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
         const double dist = std::sqrt(dx * dx + dy * dy);
@@ -207,10 +207,16 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
 
 
         // Linear interpolation from current velocity to target velocity
-        if(end_index != traj.points.size()-1){
+        if(i != traj.points.size()-1){
             traj.points[i].longitudinal_velocity_mps = tar_v;
             
             traj.points[i].acceleration_mps2 = target_a;
+        }
+
+        if(j >= 0){
+            traj.points[j].longitudinal_velocity_mps = tar_v;
+            
+            traj.points[j].acceleration_mps2 = target_a;
         }
     }
 
@@ -228,7 +234,7 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
     // Make a copy of the input trajectory
     autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
 
-    for (size_t i = start_index; i <=end_index; ++i) {
+    for (size_t i = start_index,j = start_index; i <end_index; ++i,--j) {
         const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
         const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
         const double dist = std::sqrt(dx * dx + dy * dy);
@@ -269,10 +275,19 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
 
 
         // Linear interpolation from current velocity to target velocity
-        if(end_index != traj.points.size()-1){
+        if(i != traj.points.size()-1){
             traj.points[i].longitudinal_velocity_mps = tar_v;
-            
             traj.points[i].acceleration_mps2 = target_a;
+
+            // traj.points[start_index - j].longitudinal_velocity_mps = tar_v;
+            
+            // traj.points[start_index - j].acceleration_mps2 = target_a;
+        }
+
+        if(j>= 0){
+            traj.points[j].longitudinal_velocity_mps = tar_v;
+            
+            traj.points[j].acceleration_mps2 = target_a;
         }
     }
 
@@ -290,7 +305,7 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
     // Make a copy of the input trajectory
     autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
 
-    for (size_t i = start_index; i < end_index; ++i) {
+    for (size_t i = start_index, j = start_index; i < end_index; ++i,--j) {
         const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
         const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
         const double dist = std::sqrt(dx * dx + dy * dy);
@@ -298,15 +313,21 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
         // Compute ratio along lookahead distance
         const double ratio = std::clamp(dist / lookahead, 0.0, 1.0);
 
-        const double target_a = std::clamp(current_vehicle_acceleration + (ratio * (target_acceleration.value() - current_vehicle_acceleration)), -5.0,3.0);
+        const double target_a = std::clamp(target_acceleration.value(), -5.0,3.0);
 
-        double tar_v = std::clamp((current_vehicle_velocity + ratio * (target_velocity.value() - current_vehicle_velocity)),0.0,15.0);
+        double tar_v = std::clamp(target_velocity.value(),0.0,15.0);
 
         // Linear interpolation from current velocity to target velocity
-        if(end_index != traj.points.size()-1){
+        if(i != traj.points.size()-1){
             traj.points[i].longitudinal_velocity_mps = tar_v;
             
             traj.points[i].acceleration_mps2 = target_a;
+        }
+
+        if(j >= 0){
+            traj.points[j].longitudinal_velocity_mps = tar_v;
+            
+            traj.points[j].acceleration_mps2 = target_a;
         }
     }
 
