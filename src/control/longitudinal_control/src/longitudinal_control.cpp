@@ -175,7 +175,7 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
     // Make a copy of the input trajectory
     autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
 
-    for (size_t i = start_index,j = start_index; i < end_index; ++i,--j) {
+    for (size_t i = start_index,int j = start_index; i < end_index; ++i,--j) {
         const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
         const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
         const double dist = std::sqrt(dx * dx + dy * dy);
@@ -234,7 +234,7 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
     // Make a copy of the input trajectory
     autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
 
-    for (size_t i = start_index,j = start_index; i <end_index; ++i,--j) {
+    for (size_t i = start_index, int j = start_index; i <end_index; ++i,--j) {
         const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
         const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
         const double dist = std::sqrt(dx * dx + dy * dy);
@@ -246,15 +246,15 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
         
         const double target_a = target_acceleration.value();
         
-        double tar_v;
+        double tar_v, ds;
 
         if(i == 0)
-        const double ds = std::hypot(
+        ds = std::hypot(
             traj.points[i+1].pose.position.x - traj.points[i].pose.position.x,
             traj.points[i+1].pose.position.y - traj.points[i].pose.position.y
         );
         else
-        const double ds = std::hypot(
+        ds = std::hypot(
             traj.points[i].pose.position.x - traj.points[i-1].pose.position.x,
             traj.points[i].pose.position.y - traj.points[i-1].pose.position.y
         );
@@ -305,7 +305,7 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
     // Make a copy of the input trajectory
     autoware_auto_planning_msgs::msg::Trajectory traj = traj_b;
 
-    for (size_t i = start_index, j = start_index; i < end_index; ++i,--j) {
+    for (size_t i = start_index, int j = start_index; i < end_index; ++i,--j) {
         const double dx = traj.points[i].pose.position.x - current_vehicle_state.value().pose.pose.position.x;
         const double dy = traj.points[i].pose.position.y - current_vehicle_state.value().pose.pose.position.y;
         const double dist = std::sqrt(dx * dx + dy * dy);
