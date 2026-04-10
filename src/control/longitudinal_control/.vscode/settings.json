@@ -1,0 +1,14 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/dev/acc_unit/build/simple_proportional_controller",
+        "/media/prashanth/Backup/acc_unit_with_data/install/simple_proportional_controller/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/dev/acc_unit/build/simple_proportional_controller",
+        "/media/prashanth/Backup/acc_unit_with_data/install/simple_proportional_controller/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}

@@ -1,8 +1,10 @@
 #include "longitudinal_control/longitudinal_control.hpp"
 #include <autoware_auto_planning_msgs/msg/trajectory.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <fstream>
 #include <optional>
 #include <ament_index_cpp/get_package_share_directory.hpp>
@@ -14,16 +16,36 @@ LongitudinalController::LongitudinalController() : Node("longitudinal_velocity_c
 
     look_ahead_distance = this->declare_parameter("look_ahead_distance", 2.0);
     timer_duration_msec = this->declare_parameter("timer_duration_msec", 100.0);
-    control_mode = this->declare_parameter("control_mode", 1);
+    control_mode = this->declare_parameter("control_mode", 2);
+    use_idm_in_autoware = this->declare_parameter("use_idm_in_autoware", 0);
 
     vehicle_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/localization/kinematic_state",10,
         std::bind(&LongitudinalController::vehicle_state_callback, this, std::placeholders::_1));
 
-    target_vel_sub_ = this->create_subscription<geometry_msgs::msg::Twist>("/acc/target_vel",10,
+    target_vel_sub_ = this->create_subscription<geometry_msgs::msg::TwistStamped>("/acc/target_vel",10,
         std::bind(&LongitudinalController::set_target_velocity, this, std::placeholders::_1));
     
-    updated_traj_publisher_ = this->create_publisher<autoware_auto_planning_msgs::msg::Trajectory>(
-        "/planning/scenario_planning/trajectory", 10);
+    if(use_idm_in_autoware == 1){
+        traj_subs_ = this->create_subscription<autoware_auto_planning_msgs::msg::Trajectory>("/planning/scenario_planning/trajectory",10,
+            std::bind(&LongitudinalController::trajectory_callback, this, std::placeholders::_1));
+        
+        updated_traj_publisher_ = this->create_publisher<autoware_auto_planning_msgs::msg::Trajectory>(
+            "/planning/scenario_planning/trajectory_updated", 10);
+        
+        goal_point_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/planning/mission_planning/goal",10,
+        std::bind(&LongitudinalController::new_goal_callback, this, std::placeholders::_1));
+    }
+    else{
+        // std::cout<<"use_idm_in_autoware_disabled";
+        RCLCPP_INFO(get_logger(), "autoware_idm_disabled");
+        updated_traj_publisher_ = this->create_publisher<autoware_auto_planning_msgs::msg::Trajectory>(
+            "/planning/scenario_planning/trajectory", 10);
+    }
+
+    // goal_point_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/planning/mission_planning/goal",10,
+    //     std::bind(&LongitudinalController::new_goal_callback, this, std::placeholders::_1));
+
+
 
     // std::string home_dir = std::getenv("HOME");
     // csv_file_path_ = home_dir + "/parking_lot_trajectory_acc.csv";
@@ -41,6 +63,7 @@ LongitudinalController::LongitudinalController() : Node("longitudinal_velocity_c
     csv_file_path_ = pkg_path + pkg_file;
 
     std::cout<<csv_file_path_;
+    
 
     if (!read_csv_to_trajectory(csv_file_path_)) {
       RCLCPP_ERROR(this->get_logger(), "Failed to read trajectory from CSV.");
@@ -101,20 +124,28 @@ bool LongitudinalController::read_csv_to_trajectory(const std::string & file_pat
 
 
 void LongitudinalController::trajectory_callback(const autoware_auto_planning_msgs::msg::Trajectory & traj){
-    current_trajectory = traj;
+    raw_trajectory = traj;
 }
 
 void LongitudinalController::vehicle_state_callback(const nav_msgs::msg::Odometry & vehicle_s){
     current_vehicle_state = vehicle_s;
 }
 
-void LongitudinalController::set_target_velocity(const geometry_msgs::msg::Twist::SharedPtr tar_vel){
-    target_velocity = tar_vel->linear.x;
-    target_acceleration = tar_vel->linear.z;
+void LongitudinalController::set_target_velocity(const geometry_msgs::msg::TwistStamped::SharedPtr tar_vel){
+    target_velocity = tar_vel->twist.linear.x;
+    target_acceleration = tar_vel->twist.linear.z;
 }
 
 void LongitudinalController::acceleration_callback(const geometry_msgs::msg::AccelWithCovarianceStamped & tar_acc){
     current_acceleration = tar_acc;
+}
+
+void LongitudinalController::new_goal_callback(const geometry_msgs::msg::PoseStamped & goal){
+
+    if(use_idm_in_autoware == 1){
+        current_trajectory = raw_trajectory;
+        updated_traj_publisher_->publish(current_trajectory);
+    }
 }
 
 std::pair<autoware_auto_planning_msgs::msg::TrajectoryPoint, size_t> LongitudinalController::findNearestTrajectoryPoint(const autoware_auto_planning_msgs::msg::Trajectory & traj, const nav_msgs::msg::Odometry vehicle_state){
@@ -252,29 +283,29 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
         
         double tar_v, ds;
 
-        if(i == 0)
-        ds = std::hypot(
-            traj.points[i+1].pose.position.x - traj.points[i].pose.position.x,
-            traj.points[i+1].pose.position.y - traj.points[i].pose.position.y
-        );
-        else
+        if(i == traj.points.size()-1)
         ds = std::hypot(
             traj.points[i].pose.position.x - traj.points[i-1].pose.position.x,
             traj.points[i].pose.position.y - traj.points[i-1].pose.position.y
+        );
+        else
+        ds = std::hypot(
+            traj.points[i+1].pose.position.x - traj.points[i].pose.position.x,
+            traj.points[i+1].pose.position.y - traj.points[i].pose.position.y
         );
         
         if(i == start_index)
         tar_v = std::clamp(
             std::sqrt(std::max(0.0, (2 * ds * target_a) + 
                                     (current_vehicle_velocity * current_vehicle_velocity))),
-            0.0, 15.0
+            0.0, 10.0
         );
         else
         tar_v = std::clamp(
             std::sqrt(std::max(0.0, (2 * ds * target_a) + 
                                     (traj.points[i-1].longitudinal_velocity_mps *
                                     traj.points[i-1].longitudinal_velocity_mps))),
-            0.0, 15.0
+            0.0, 10.0
         );
 
 
@@ -288,11 +319,11 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
             // traj.points[start_index - j].acceleration_mps2 = target_a;
         }
 
-        if(j>= 0){
-            traj.points[j].longitudinal_velocity_mps = tar_v;
+        // if(j>= 0){
+        //     traj.points[j].longitudinal_velocity_mps = tar_v;
             
-            traj.points[j].acceleration_mps2 = target_a;
-        }
+        //     traj.points[j].acceleration_mps2 = target_a;
+        // }
     }
 
     return traj;
@@ -330,11 +361,11 @@ autoware_auto_planning_msgs::msg::Trajectory LongitudinalController::Interpolate
             traj.points[i].acceleration_mps2 = target_a;
         }
 
-        if(j >= 0){
-            traj.points[j].longitudinal_velocity_mps = tar_v;
+        // if(j >= 0){
+        //     traj.points[j].longitudinal_velocity_mps = tar_v;
             
-            traj.points[j].acceleration_mps2 = target_a;
-        }
+        //     traj.points[j].acceleration_mps2 = target_a;
+        // }
     }
 
     return traj;
@@ -398,11 +429,13 @@ void LongitudinalController::publishUpdatedTrajectory()
         updated_traj =
             InterpolateAccelerations(current_trajectory, start_idx, end_idx, current_acceleration.value().accel.accel.linear.x, current_vehicle_state.value().twist.twist.linear.x, look_ahead_distance);
             RCLCPP_INFO(get_logger(), "Published updated trajectory with target acc %.2f", target_acceleration.value());
+            RCLCPP_INFO(get_logger(), "Nearest point %.2f", updated_traj.points[start_idx].longitudinal_velocity_mps);
 
     }
     else{
         updated_traj =
             InterpolateAccelerationsAndVelocity(current_trajectory, start_idx, end_idx, current_acceleration.value().accel.accel.linear.x, current_vehicle_state.value().twist.twist.linear.x, look_ahead_distance);
+            RCLCPP_INFO(get_logger(), "Published updated trajectory with target acc %.2f and velocity %.2f", target_acceleration.value(), target_velocity.value());
 
     }
 
@@ -415,5 +448,4 @@ void LongitudinalController::publishUpdatedTrajectory()
         RCLCPP_WARN(get_logger(), "Updated trajectory publisher not initialized.");
     }
 }
-
 

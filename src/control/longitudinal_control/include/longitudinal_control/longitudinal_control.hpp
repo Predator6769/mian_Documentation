@@ -4,7 +4,9 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <std_msgs/msg/float64.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <geometry_msgs/msg/accel_with_covariance_stamped.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <fstream>
 #include <optional>
 
@@ -16,7 +18,7 @@ class LongitudinalController : public rclcpp::Node
         explicit LongitudinalController();
 
     private:
-        autoware_auto_planning_msgs::msg::Trajectory current_trajectory;
+        autoware_auto_planning_msgs::msg::Trajectory current_trajectory, raw_trajectory;
         std::optional<nav_msgs::msg::Odometry> current_vehicle_state;
         std::optional<geometry_msgs::msg::AccelWithCovarianceStamped> current_acceleration;
 
@@ -24,7 +26,7 @@ class LongitudinalController : public rclcpp::Node
 
         double timer_duration_msec;
 
-        int control_mode;
+        int control_mode, use_idm_in_autoware;
 
 
 
@@ -52,9 +54,11 @@ class LongitudinalController : public rclcpp::Node
 
         void vehicle_state_callback(const nav_msgs::msg::Odometry & vehicle_s);
 
+        void new_goal_callback(const geometry_msgs::msg::PoseStamped & goal);
+
         void acceleration_callback(const geometry_msgs::msg::AccelWithCovarianceStamped & tar_acc); 
 
-        void set_target_velocity(const geometry_msgs::msg::Twist::SharedPtr tar_vel); 
+        void set_target_velocity(const geometry_msgs::msg::TwistStamped::SharedPtr tar_vel); 
 
         bool read_csv_to_trajectory(const std::string & file_path);
 
@@ -63,11 +67,14 @@ class LongitudinalController : public rclcpp::Node
 
 
         rclcpp::Subscription<autoware_auto_planning_msgs::msg::Trajectory>::SharedPtr traj_subs_;
-        rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr target_vel_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr target_vel_sub_;
         rclcpp::Subscription<geometry_msgs::msg::AccelWithCovarianceStamped>::SharedPtr acceleration_sub_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_point_sub_;
         rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr vehicle_state_sub_;
         rclcpp::Subscription<geometry_msgs::msg::AccelWithCovarianceStamped>::SharedPtr vehicle_acc_sub_;
         rclcpp::Publisher<autoware_auto_planning_msgs::msg::Trajectory>::SharedPtr updated_traj_publisher_;
+        
+
 
         
 

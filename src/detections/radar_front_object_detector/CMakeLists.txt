@@ -8,10 +8,12 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(autoware_auto_vehicle_msgs REQUIRED)
 find_package(radar_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tier4_debug_msgs REQUIRED)
 
 add_executable(front_object_detector
   src/front_object_detector.cpp
@@ -19,10 +21,12 @@ add_executable(front_object_detector
 
 ament_target_dependencies(front_object_detector
   rclcpp
+  autoware_auto_vehicle_msgs
   radar_msgs
   visualization_msgs
   nav_msgs
   tf2
+  tier4_debug_msgs
 )
 
 # Install launch files

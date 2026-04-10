@@ -21,13 +21,13 @@ def generate_launch_description():
     
     window_arg = DeclareLaunchArgument(
         'window_seconds',
-        default_value='5.0',
+        default_value='2.0',
         description='Moving average window (seconds)'
     )
     
     Kp_arg = DeclareLaunchArgument(
         'Kp',
-        default_value='0.5',
+        default_value='0.1',
         description='Proportional gain'
     )
     
@@ -39,7 +39,7 @@ def generate_launch_description():
     
     debug_arg = DeclareLaunchArgument(
         'debug_mode',
-        default_value='false',
+        default_value='true',
         description='Enable debug output'
     )
     
@@ -72,7 +72,7 @@ def generate_launch_description():
 
     workspace_root = os.path.abspath(os.path.join(install_prefix, ".."))
 
-    plots_dir = os.path.join(workspace_root, "acc_debug_plots")
+    plots_dir = os.path.join(workspace_root, "acc_debug_plots_3_31_2026_traffic_smoother_test_3_vel_acc_667_final")
 
     plot_node = Node(
         package='simple_proportional_controller',

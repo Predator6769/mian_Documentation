@@ -164,12 +164,12 @@ track equilibrium traffic speeds to smooth vehicle motion.
 
 ```python
 self.idm_params = {
-    'v0': 5.10,      # Desired speed (m/s)
-    'T': 1.0,        # Safe time headway (s)
-    's0': 5.0,       # Minimum spacing (m)
-    'delta': 15.0,   # Acceleration exponent
-    'a': 1.0,        # Maximum acceleration (m/s²)
-    'b': 1.5         # Comfortable deceleration (m/s²)
+  'v0': 6.705,      # Desired speed (m/s)
+  'T': 1.5,          # Safe time headway (s)
+  's0': 15.0,         # Minimum spacing (m)
+  'delta': 4.0,      # Acceleration exponent
+  'a': 2.0,          # Maximum acceleration (m/s²)
+  'b': 2.5          # Comfortable deceleration (m/s²)
 }
 ```
 
@@ -208,6 +208,9 @@ This launch file starts:
 ## Launch Command
 
 ```bash
+cd acc_unit/
+colcon build
+source install/setup.bash
 ros2 launch acc_unit_launch acc_unit_launch.launch.xml
 ```
 
@@ -218,17 +221,26 @@ ros2 launch acc_unit_launch acc_unit_launch.launch.xml
 ### Front Object Detector
 
 ```bash
+cd acc_unit/
+colcon build
+source install/setup.bash
 ros2 launch radar_front_object_detector front_object_detector.launch.xml
 ```
 
 ### Longitudinal Controller
 
 ```bash
+cd acc_unit/
+colcon build
+source install/setup.bash
 ros2 launch longitudinal_control longitudinal_control.launch.xml
 ```
 
 ### Traffic Smoother
 
 ```bash
+cd acc_unit/
+colcon build
+source install/setup.bash
 ros2 launch simple_proportional_controller simple_proportional_controller.launch.py
 ```

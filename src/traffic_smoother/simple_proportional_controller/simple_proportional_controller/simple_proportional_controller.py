@@ -4,6 +4,8 @@ Simple Proportional Controller ROS2 Node
 For traffic smoothing using moving average equilibrium estimation
 """
 
+import os
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
@@ -13,9 +15,11 @@ from collections import deque
 
 # ROS2 message types
 from std_msgs.msg import Float64, Bool, String
-from geometry_msgs.msg import Twist, Point
+from geometry_msgs.msg import Twist, TwistStamped, Point
 from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker, MarkerArray
+from autoware_auto_vehicle_msgs.msg import VelocityReport
+from tier4_debug_msgs.msg import Float64Stamped
 
 # Custom message (if using, otherwise comment out)
 # from your_package.msg import ControlCommand
@@ -26,12 +30,12 @@ class SimpleProportionalController(Node):
     
     Subscribes to:
     - /ego_odom: Odometry of ego vehicle (for current speed)
-    - /leader_speed: Speed of leader vehicle (Float64)
+    - /leader_speed: Speed of leader vehicle (Float64Stamped)
     - /leader_position: Position of leader (Point or Float64 for longitudinal distance)
-    - /gap: Distance to leader (Float64)
+    - /gap: Distance to leader (Float64Stamped)
     
     Publishes:
-    - /control_command: Desired acceleration/speed (Twist or custom)
+    - /control_command: Desired acceleration/speed (TwistStamped or custom)
     - /equilibrium_speed: Estimated equilibrium speed (Float64)
     - /controller_debug: Debug information (String)
     - /controller_markers: Visualization markers (MarkerArray)
@@ -42,13 +46,14 @@ class SimpleProportionalController(Node):
         
         # Declare parameters with default values
         self.declare_parameter('dt', 0.1)
-        self.declare_parameter('window_seconds', 5.0)
-        self.declare_parameter('Kp', 0.5)
+        self.declare_parameter('window_seconds', 3.0)
+        self.declare_parameter('Kp', 0.1)
         self.declare_parameter('vehicle_length', 5.0)
         self.declare_parameter('use_idm', True)
         self.declare_parameter('max_accel', 2.0)
         self.declare_parameter('max_decel', -3.0)
         self.declare_parameter('debug_mode', False)
+        self.declare_parameter('debug_log_path', '/tmp/simple_proportional_controller_debug.log')
         
         # Get parameters
         self.dt = self.get_parameter('dt').value
@@ -59,6 +64,7 @@ class SimpleProportionalController(Node):
         self.max_accel = self.get_parameter('max_accel').value
         self.max_decel = self.get_parameter('max_decel').value
         self.debug_mode = self.get_parameter('debug_mode').value
+        self.debug_log_path = self.get_parameter('debug_log_path').value
         
         # Calculate window samples
         self.window_samples = int(np.ceil(self.window_seconds / self.dt))
@@ -71,7 +77,7 @@ class SimpleProportionalController(Node):
         self.current_position = 0.0
         self.leader_speed = 0.0
         self.leader_position = 0.0
-        self.gap = 20.0  # initial large gap
+        self.gap = 10.0  # initial large gap
         self.equilibrium_speed = 0.0
         self.desired_acceleration = 0.0
         self.desired_speed = 0.0
@@ -79,15 +85,16 @@ class SimpleProportionalController(Node):
         # Safety flags
         self.leader_detected = False
         self.emergency_brake = False
+        self.debug_log_file = None
         
         # IDM parameters (if using)
         self.idm_params = {
-            'v0': 5.10,      # Desired speed (m/s)
-            'T': 1.0,          # Safe time headway (s)
-            's0': 5.0,         # Minimum spacing (m)
-            'delta': 15.0,      # Acceleration exponent
-            'a': 1.0,          # Maximum acceleration (m/s²)
-            'b': 1.5           # Comfortable deceleration (m/s²)
+            'v0': 6.705,      # Desired speed (m/s)
+            'T': 1.5,          # Safe time headway (s)
+            's0': 15.0,         # Minimum spacing (m)
+            'delta': 4.0,      # Acceleration exponent
+            'a': 2.0,          # Maximum acceleration (m/s²)
+            'b': 2.5          # Comfortable deceleration (m/s²)
         }
 
         # self.idm_params = {
@@ -110,12 +117,19 @@ class SimpleProportionalController(Node):
         self.odom_sub = self.create_subscription(
             Odometry,
             '/ego_odom',
-            self.odom_callback,
+            self.position_callback,
+            qos_profile
+        )
+
+        self.ego_velocity_sub = self.create_subscription(
+            VelocityReport,
+            '/vehicle/status/velocity_status',
+            self.velocity_status_callback,
             qos_profile
         )
         
         self.leader_speed_sub = self.create_subscription(
-            Float64,
+            Float64Stamped,
             '/leader_speed',
             self.leader_speed_callback,
             qos_profile
@@ -129,7 +143,7 @@ class SimpleProportionalController(Node):
         )
         
         self.gap_sub = self.create_subscription(
-            Float64,
+            Float64Stamped,
             '/gap',
             self.gap_callback,
             qos_profile
@@ -137,7 +151,7 @@ class SimpleProportionalController(Node):
         
         # Publishers
         self.control_pub = self.create_publisher(
-            Twist,
+            TwistStamped,
             '/control_command',
             10
         )
@@ -165,22 +179,45 @@ class SimpleProportionalController(Node):
         
         # Status timer (for logging)
         self.status_timer = self.create_timer(1.0, self.status_callback)
+
+        self.setup_debug_log_file()
         
         self.get_logger().info(
             f"Simple Proportional Controller initialized:\n"
             f"  dt: {self.dt}s, window: {self.window_seconds}s ({self.window_samples} samples)\n"
             f"  Kp: {self.Kp}, use_idm: {self.use_idm}\n"
-            f"  max_accel: {self.max_accel}, max_decel: {self.max_decel}"
+            f"  max_accel: {self.max_accel}, max_decel: {self.max_decel}\n"
+            f"  debug_log_path: {self.debug_log_path}"
         )
+
+    def setup_debug_log_file(self):
+        """Open a line-buffered text file for debug output."""
+        log_dir = os.path.dirname(self.debug_log_path)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+
+        self.debug_log_file = open(self.debug_log_path, 'a', buffering=1, encoding='utf-8')
+        self.debug_log_file.write("# Simple Proportional Controller debug log\n")
+
+    def close_debug_log_file(self):
+        """Close the debug log file if it is open."""
+        if self.debug_log_file is not None and not self.debug_log_file.closed:
+            self.debug_log_file.close()
+        self.debug_log_file = None
     
-    def odom_callback(self, msg):
-        """Callback for odometry messages"""
-        self.current_speed = msg.twist.twist.linear.x
-        # self.current_speed = self.desired_speed
+    def position_callback(self, msg):
+        """Callback for odometry messages used only for position."""
         self.current_position = msg.pose.pose.position.x
-        
+
         if self.debug_mode:
-            self.get_logger().debug(f"Odometry: speed={self.current_speed:.2f}, pos={self.current_position:.2f}")
+            self.get_logger().debug(f"Odometry position: pos={self.current_position:.2f}")
+
+    def velocity_status_callback(self, msg):
+        """Callback for ego velocity from vehicle status."""
+        self.current_speed = msg.longitudinal_velocity
+
+        if self.debug_mode:
+            self.get_logger().debug(f"Velocity status: speed={self.current_speed:.2f}")
     
     def leader_speed_callback(self, msg):
         """Callback for leader speed messages"""
@@ -319,21 +356,22 @@ class SimpleProportionalController(Node):
     
     def publish_control(self, acceleration):
         """
-        Publish control command as Twist message
-        
+        Publish control command as TwistStamped message
+
         Using Twist linear.x for desired acceleration
         (or you can use linear.x for desired speed and angular.z for acceleration)
         """
-        cmd = Twist()
+        cmd = TwistStamped()
+        cmd.header.stamp = self.get_clock().now().to_msg()
         
         # Option A: Send desired acceleration
-        cmd.linear.z = acceleration  # m/s²
+        cmd.twist.linear.z = acceleration  # m/s²
         
         # Option B: Send desired speed (uncomment if your vehicle uses speed commands)
-        cmd.linear.x = self.desired_speed  # m/s
+        cmd.twist.linear.x = self.desired_speed  # m/s
         
         # Add timestamp or other info in angular (optional)
-        cmd.angular.y = self.equilibrium_speed  # just for debugging
+        cmd.twist.angular.y = self.equilibrium_speed  # just for debugging
         
         self.control_pub.publish(cmd)
     
@@ -350,6 +388,8 @@ class SimpleProportionalController(Node):
             f"accel={self.desired_acceleration:.3f}"
         )
         self.debug_pub.publish(debug_msg)
+        if self.debug_log_file is not None:
+            self.debug_log_file.write(debug_msg.data + "\n")
         self.get_logger().debug(debug_msg.data)
     
     def publish_markers(self):
@@ -401,6 +441,10 @@ class SimpleProportionalController(Node):
         self.equilibrium_speed = 0.0
         self.desired_acceleration = 0.0
         self.get_logger().info("Controller reset")
+
+    def destroy_node(self):
+        self.close_debug_log_file()
+        return super().destroy_node()
 
 
 def main(args=None):

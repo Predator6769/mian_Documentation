@@ -5,7 +5,9 @@
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <autoware_auto_vehicle_msgs/msg/velocity_report.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <tier4_debug_msgs/msg/float64_stamped.hpp>
 #include <cmath>
 #include <limits>
 #include <tf2/LinearMath/Quaternion.h>
@@ -25,11 +27,18 @@ public:
       std::bind(&FrontObjectDetector::tracksCallback, this, std::placeholders::_1)
     );
 
-    vehicle_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-      "/localization/kinematic_state",
-      10,
-      std::bind(&FrontObjectDetector::Vehicle_state_callback, this, std::placeholders::_1)
-    );
+    // vehicle_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+    //   "/localization/kinematic_state",
+    //   10,
+    //   std::bind(&FrontObjectDetector::Vehicle_state_callback, this, std::placeholders::_1)
+    // );
+
+    velocity_status_sub_ =
+      this->create_subscription<autoware_auto_vehicle_msgs::msg::VelocityReport>(
+        "/vehicle/status/velocity_status",
+        10,
+        std::bind(&FrontObjectDetector::velocityStatusCallback, this, std::placeholders::_1)
+      );
 
     marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>(
       "/radar_1/front_track_marker", 10
@@ -40,10 +49,10 @@ public:
         "/radar_1/front_track_data", 10);
     
     gap_pub_ =
-      this->create_publisher<std_msgs::msg::Float64>(
+      this->create_publisher<tier4_debug_msgs::msg::Float64Stamped>(
         "/acc/perception/gap", 10);
     vel_pub_ =
-      this->create_publisher<std_msgs::msg::Float64>(
+      this->create_publisher<tier4_debug_msgs::msg::Float64Stamped>(
         "/acc/perception/velocity", 10);
     acc_pub_ =
       this->create_publisher<std_msgs::msg::Float64>(
@@ -57,6 +66,7 @@ public:
     max_angle_rad_ = this->declare_parameter("max_angle_deg", 5.0) * M_PI / 180.0;
     y_base = this->declare_parameter("vehicle_width_half", 0.9);
     longitudinal_limit = this->declare_parameter("longitudinal_limit", 50.0);
+    delta_x = this->declare_parameter("delta_x", 0.5);
 
     median_window_ = this->declare_parameter("median_window", 5);
     alpha_gap_     = this->declare_parameter("alpha_gap", 0.25);   // ~10Hz default
@@ -105,9 +115,23 @@ private:
   rclcpp::Time last_filt_time_{0, 0, RCL_ROS_TIME};
 
 
+  // void Vehicle_state_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
+  // {
+  //   current_vel = msg->twist.twist.linear.x;
+  //   current_x   = msg->pose.pose.position.x;
+  //   current_y   = msg->pose.pose.position.y;
+
+  //   const auto &q_msg = msg->pose.pose.orientation;
+  //   tf2::Quaternion q(q_msg.x, q_msg.y, q_msg.z, q_msg.w);
+
+  //   double roll, pitch, yaw;
+  //   tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+  //   current_yaw = yaw;
+  // }
+
   void Vehicle_state_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
   {
-    current_vel = msg->twist.twist.linear.x;
+    // current_vel = msg->twist.twist.linear.x;
     current_x   = msg->pose.pose.position.x;
     current_y   = msg->pose.pose.position.y;
 
@@ -117,6 +141,11 @@ private:
     double roll, pitch, yaw;
     tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
     current_yaw = yaw;
+  }
+
+  void velocityStatusCallback(const autoware_auto_vehicle_msgs::msg::VelocityReport::SharedPtr msg)
+  {
+    current_vel = msg->longitudinal_velocity;
   }
 
   void tracksCallback(const radar_msgs::msg::RadarTracks::SharedPtr msg)
@@ -308,12 +337,26 @@ private:
         vlead_prev_ = vlead_filt_;
         last_filt_time_ = t;
       }
-      
+
+      // rate limiting (gentle) ---
+      // Gap rate limit
+
+      //clamp to plausible ranges
+      // gap_filt_   = clampT(gap_filt_,   0.0, longitudinal_limit);
+      // vlead_filt_ = clampT(vlead_filt_, 0.0, 80.0); // allow slight negative if your convention can do it
+
+      // // Update prev + time
+      // gap_prev_ = gap_filt_;
+      // vlead_prev_ = vlead_filt_;
+      // last_filt_time_ = t;
+
       // Publish filtered
-      std_msgs::msg::Float64 final_vel;
+      tier4_debug_msgs::msg::Float64Stamped final_vel;
+      final_vel.stamp = msg->header.stamp;
       final_vel.data = vlead_filt_;
 
-      std_msgs::msg::Float64 final_longitudinal_x;
+      tier4_debug_msgs::msg::Float64Stamped final_longitudinal_x;
+      final_longitudinal_x.stamp = msg->header.stamp;
       final_longitudinal_x.data = gap_filt_;
 
       std_msgs::msg::Float64 final_acceleration;
@@ -368,15 +411,17 @@ private:
   rclcpp::Subscription<radar_msgs::msg::RadarTracks>::SharedPtr sub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr closest_point_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr gap_pub_;
-  rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr vel_pub_;
+  rclcpp::Publisher<tier4_debug_msgs::msg::Float64Stamped>::SharedPtr gap_pub_;
+  rclcpp::Publisher<tier4_debug_msgs::msg::Float64Stamped>::SharedPtr vel_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr acc_pub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr vehicle_state_sub_;
+  rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::VelocityReport>::SharedPtr velocity_status_sub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr leader_marker_pub_;
 
   double max_angle_rad_;
   double y_base;
   double longitudinal_limit;
+  double delta_x;
   double gap_prev_ = 0.0;
   double vlead_prev_ = 0.0;
   int median_window_;
