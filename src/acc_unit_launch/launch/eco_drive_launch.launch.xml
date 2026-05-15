@@ -1,0 +1,18 @@
+<launch>
+
+  <!-- Include C++ package vel/acc control launch -->
+  <include file="$(find-pkg-share longitudinal_control)/launch/longitudinal_control.launch.xml"/>
+
+  <!-- Include C++ package radar perception launch -->
+  <include file="$(find-pkg-share radar_front_object_detector)/launch/front_object_detector.launch.xml"/>
+  
+  <!-- Pure IDM controller -->
+  <include file="$(find-pkg-share pure_idm)/launch/pure_idm.launch.py"/>
+
+  <!-- Eco Drive NMPC (manual now, future optimizer) -->
+  <include file="$(find-pkg-share eco_drive_nmpc)/launch/eco_drive_nmpc.launch.py"/>
+
+  <!-- FSM arbiter (chooses IDM vs EcoDrive) -->
+  <include file="$(find-pkg-share eco_drive_fsm)/launch/eco_drive_fsm.launch.py"/>
+
+</launch>

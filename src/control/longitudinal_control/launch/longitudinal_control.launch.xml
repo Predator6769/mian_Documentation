@@ -1,0 +1,11 @@
+<launch>
+  <node
+    pkg="longitudinal_control"
+    exec="longitudinal_controller_node"
+    name="longitudinal_controller"
+    output="screen">
+
+    <param from="$(find-pkg-share longitudinal_control)/config/longitudinal_control.yaml"/>
+
+  </node>
+</launch>

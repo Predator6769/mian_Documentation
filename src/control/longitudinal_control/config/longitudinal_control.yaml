@@ -1,0 +1,7 @@
+longitudinal_controller:
+  ros__parameters:
+    look_ahead_distance: 5.0       # in meters
+    timer_duration_msec: 100.0       # in milliseconds
+    csv_file_path: "/data/parking_lot_trajectory_traffic_smoother_test_big_loop.csv"
+    control_mode: 2
+    use_idm_in_autoware: 0

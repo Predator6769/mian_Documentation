@@ -1,0 +1,13 @@
+front_object_detector:
+  ros__parameters:
+    max_angle_deg: 7.0
+    vehicle_width_half: 0.9
+    longitudinal_limit: 50.0
+    delta_x: 0.5
+    median_window: 3
+    alpha_gap: 0.25
+    alpha_vel: 0.2
+    alpha_acc: 0.2
+    leader_acc_limit: 6.0
+    gap_rate_v_margin: 5.0
+    leader_jerk_limit: 10.0

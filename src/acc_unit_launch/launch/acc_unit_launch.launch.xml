@@ -1,0 +1,16 @@
+<launch>
+
+  <!-- Include C++ package vel/acc control launch -->
+  <include file="$(find-pkg-share longitudinal_control)/launch/longitudinal_control.launch.xml"/>
+
+  <!-- Include C++ package radar perception launch -->
+  <include file="$(find-pkg-share radar_front_object_detector)/launch/front_object_detector.launch.xml"/>
+
+  <!-- Python package launch Trafffic Smoother-->
+  <include file="$(find-pkg-share simple_proportional_controller)/launch/simple_proportional_controller.launch.py"/>
+
+  <include file="$(find-pkg-share simple_proportional_ewma_safety_features)/launch/simple_proportional_ewma_safety_features.launch.py"/>
+
+  <include file="$(find-pkg-share simple_proportional_regime_switching_safety)/launch/regime_switching_controller.launch.py"/>
+
+</launch>
