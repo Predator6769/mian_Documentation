@@ -11,7 +11,7 @@ The `eco_drive` stack contains a set of ROS 2 packages used for testing and eval
 All packages are launched together using:
 
 ```bash
-ros2 launch acc_uit_launch eco_drive.launch.xml
+ros2 launch acc_unit_launch eco_drive_launch.launch.xml
 ```
 
 ---
@@ -94,7 +94,7 @@ The `eco_drive_fsm` package implements a simple finite state machine (FSM) respo
 
 ### Responsibilities
 
-- Monitors control conditions
+- Monitors emergency conditions
 - Chooses between IDM and dummy velocity outputs
 - Publishes final velocity and acceleration commands
 
@@ -144,7 +144,7 @@ The corresponding acceleration is also published.
 Launch the complete eco-drive stack using:
 
 ```bash
-ros2 launch acc_uit_launch eco_drive.launch.xml
+ros2 launch acc_unit_launch eco_drive_launch.launch.xml
 ```
 
 ---
